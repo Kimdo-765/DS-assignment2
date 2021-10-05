@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"strconv"
+    "os"
 )
 
 // Sum numbers from channel `nums` and output sum to `out`.
@@ -12,6 +13,11 @@ import (
 func sumWorker(nums chan int, out chan int) {
 	// TODO: implement me
 	// HINT: use for loop over `nums`
+    sum := 0
+    for i := range nums {
+        sum = sum + i
+    }
+    out <- sum
 }
 
 // Read integers from the file `fileName` and return sum of all values.
@@ -23,7 +29,36 @@ func sum(num int, fileName string) int {
 	// TODO: implement me
 	// HINT: use `readInts` and `sumWorkers`
 	// HINT: used buffered channels for splitting numbers between workers
-	return 0
+    file, err := os.OpenFile(fileName, os.O_RDWR, os.FileMode(0644),)
+    if err != nil {
+        return 0
+    }
+
+    r := bufio.NewReader(file)
+    numList, _ := readInts(r)
+    bufLen := len(numList) / num
+
+    var inputs []chan int
+    for i := 0; i < num; i++ {
+        inputs = append(inputs, make(chan int, bufLen))
+    }
+    output := make(chan int, num)
+
+    for i := 0; i < num; i++ {
+        for j := i*bufLen; j < (i+1)*bufLen; j++ {
+            inputs[i] <- numList[j]
+        }
+        close(inputs[i])
+        go sumWorker(inputs[i], output)
+    }
+
+    sumResult := 0
+
+    for i := 0; i < num; i++{
+        sumResult = sumResult + <-output
+    }
+
+	return sumResult
 }
 
 // Read a list of integers separated by whitespace from `r`.
